@@ -14,7 +14,6 @@ getReportFromWorkday <- function(URL, destFile = NULL, authFile = "settings") {
     # Libraries necessary
     suppressWarnings(library(XML))
     suppressWarnings(library(jsonlite))
-    suppressWarnings(library(gdata))
     suppressWarnings(library(RCurl))
     
     # Check if the file exists and has the correct format
@@ -105,8 +104,27 @@ getReportFromWorkday <- function(URL, destFile = NULL, authFile = "settings") {
                result <- read.csv(tmpFile)
            },
            gdata = {
-               file.remove(tmpFile)
-               stop(paste("Format not supported: ", format))
+               if(is.null(destFile)) {
+                   stop(paste("Format not supported as data frame conversion",
+                              "for this format needs to be custom. Set the parameter",
+                              "destFile to just download the file",sep = " "))
+               }
+               else {
+                   f <- CFILE(tmpFile, mode = "w")
+                   a <- curlPerform(url = URL, username = username,
+                                    password = password,
+                                    writedata = f@ref)
+                   close(f)
+                   
+                   if(a != 0 ) {
+                       file.remove(tmpFile)
+                       stop(paste("Error downloading the file. Please check",
+                                  "the URL is correct as well as the username",
+                                  "and password", sep = " "))
+                   }
+                   
+                   result <- TRUE
+               }
            },
            json = {
                f <- CFILE(tmpFile, mode = "w")
