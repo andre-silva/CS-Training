@@ -1,4 +1,4 @@
-# Reads Workday report into a data frame
+# Reads Workday report into a list
 getReportFromWorkday <- function(URL, destFile = NULL, authFile = "settings") {
     # First get Workday authentication credentials. From my research I didn't
     # any great way of doing that. Since obviously we don't want those in the
@@ -40,10 +40,6 @@ getReportFromWorkday <- function(URL, destFile = NULL, authFile = "settings") {
     # Download the file. If a destination file name is provided, the report will
     # be kept, otherwise a temporary file will be created in the working
     # directory which will be deleted after it is read
-    f <- CFILE("workdayFile.tmp", mode = "w")
-    a <- curlPerform(url = URL, username = username, password = password,
-                     writedata = f@ref)
-    close(f)
     
     # Check and validate format
     if (!grepl("&format=", URL)){
@@ -53,45 +49,74 @@ getReportFromWorkday <- function(URL, destFile = NULL, authFile = "settings") {
         format <- unlist(strsplit(URL, "&format=", fixed = TRUE))[2]
     }
     
+    # Use separate function based on format
     switch(format,
            workdayxml = {
-               file.remove("workdayFile.tmp")
-               stop(paste("Format not supported: ", format))
+               if(is.null(destFile)) {
+                   stop("Format not supported as data frame conversion for
+                        this format needs to be custom. Set the parameter
+                        destFile to just download the file")
+               }
+               else {
+                   tmpFile <- "workdayFile.tmp"
+                   f <- CFILE(tmpFile, mode = "w")
+                   a <- curlPerform(url = URL, username = username,
+                                    password = password,
+                                    writedata = f@ref)
+                   close(f)
+                   result <- TRUE
+               }
            },
            simplexml = {
-               file.remove("workdayFile.tmp")
-               stop(paste("Format not supported: ", format))
+               tmpFile <- "workdayFile.tmp"
+               f <- CFILE(tmpFile, mode = "w")
+               a <- curlPerform(url = URL, username = username,
+                                password = password,
+                                writedata = f@ref)
+               close(f)
+               
+               result <- xmlParse(tmpFile)
+               result <- xmlToDataFrame(result)
            },
            csv = {
-               file.remove("workdayFile.tmp")
+               file.remove(tmpFile)
                stop(paste("Format not supported: ", format))
            },
            gdata = {
-               file.remove("workdayFile.tmp")
+               file.remove(tmpFile)
                stop(paste("Format not supported: ", format))
            },
            json = {
-               #file.remove("workdayFile.tmp")
-               #stop(paste("Format not supported: ", format))
+               tmpFile <- "workdayFile.tmp"
+               f <- CFILE(tmpFile, mode = "w")
+               a <- curlPerform(url = URL, username = username,
+                                password = password,
+                                writedata = f@ref)
+               close(f)
+               
+               result <- fromJSON(tmpFile)
+               result <- result$Report_Entry
            },
            {
-               file.remove("workdayFile.tmp")
+               file.remove(tmpFile)
                stop(paste("Format not supported: ", format))
            })
     
     if(a != 0 ) {
-        file.remove("workdayFile.tmp")
+        file.remove(tmpFile)
         stop("Error downloading the file. Please check the URL is correct as
              well as the username and password")
     }
     
     if(is.null(destFile)) {
         ## Remove temporary file
-        file.remove("workdayFile.tmp")
+        file.remove(tmpFile)
     }
     else {
         ## Save the file locally
-        file.copy("workdayFile.tmp", destFile, overwrite = TRUE)
-        file.remove("workdayFile.tmp")
+        file.copy(tmpFile, destFile, overwrite = TRUE)
+        file.remove(tmpFile)
     }
+    
+    result
 }
