@@ -130,6 +130,7 @@ getReportFromWorkday <- function(URL, destFile = NULL, authFile = "settings") {
                stop(paste("Format not supported: ", format))
            })
     
+
     if(is.null(destFile)) {
         ## Remove temporary file
         file.remove(tmpFile)
