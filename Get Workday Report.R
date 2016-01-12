@@ -89,8 +89,20 @@ getReportFromWorkday <- function(URL, destFile = NULL, authFile = "settings") {
                result <- xmlToDataFrame(result)
            },
            csv = {
-               file.remove(tmpFile)
-               stop(paste("Format not supported: ", format))
+               f <- CFILE(tmpFile, mode = "w")
+               a <- curlPerform(url = URL, username = username,
+                                password = password,
+                                writedata = f@ref)
+               close(f)
+               
+               if(a != 0 ) {
+                   file.remove(tmpFile)
+                   stop(paste("Error downloading the file. Please check",
+                              "the URL is correct as well as the username",
+                              "and password", sep = " "))
+               }
+               
+               result <- read.csv(tmpFile)
            },
            gdata = {
                file.remove(tmpFile)
